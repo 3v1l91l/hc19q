@@ -8,12 +8,12 @@ from os.path import isfile, join
 filesHelper = FilesHelper()
 
 def extract_tags(photos_tags, photo_id):
-  tags = []
+  tags = set()
   if len(photo_id) == 2:
-    tags.extend(photos_tags[int(photo_id[0])])
-    tags.extend(photos_tags[int(photo_id[1])])
+    tags.update(photos_tags[int(photo_id[0])])
+    tags.update(photos_tags[int(photo_id[1])])
   else:
-    tags.extend(photos_tags[int(photo_id[0])])
+    tags.update(photos_tags[int(photo_id[0])])
   
   return set(tags)
 
