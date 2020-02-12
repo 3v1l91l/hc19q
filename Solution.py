@@ -3,110 +3,121 @@ from TagsScorer import TagsScorer
 from os import path
 import os
 from FilesHelper import FilesHelper
-
+from random import random
+import time
 tagsScorer = TagsScorer()
+
+def get_max_horiz(current_photo_tags, horizontal_photos, horizontal_photos_indexes):
+  max_horiz = -1
+  max_index = -1
+  max_score = -1
+  for horiz_i in horizontal_photos_indexes:
+    horiz_score = tagsScorer.scoreTags(current_photo_tags, horizontal_photos[horiz_i])
+    if horiz_score > max_horiz:
+      max_horiz = horiz_score
+      max_index = horiz_i
+      max_score = horiz_score
+  return max_score, max_index
+
+def get_max_vert(current_photo_tags, vertical_photos, vertical_photos_indexes):
+  left_index = None
+  right_index = None
+  max_vert_score = -1
+  vert_scores = []
+  for vert_i in vertical_photos_indexes:
+    current_vert_score = tagsScorer.scoreTags(current_photo_tags, vertical_photos[vert_i])
+    if current_vert_score > max_vert_score:
+      right_index = left_index
+      left_index = vert_i
+      max_vert_score = current_vert_score
+  return left_index, right_index
 
 def solve_file(filepath):
   vertical_photos = []
   horizontal_photos = []
+  vertical_photos_ids = []
   photos = []
-  photos_ids = []
+  horizontal_photos_ids = []
+  count = 0
   with open(filepath) as fp:
     N = int(fp.readline().rstrip('\n'))
-    for i in range(0, N):
+    for i in range(0, N//100):
       orientation, num_tags, *tags = [s for s in fp.readline().rstrip('\n').split(" ")] 
       tags = set(tags)
       if orientation == 'V':
-        pass
+        vertical_photos.append(tags)
+        vertical_photos_ids.append(i)
       else: 
         horizontal_photos.append(tags)
-        photos_ids.append(i)
-  scores = [[-1]*len(horizontal_photos) for x in range(0, len(horizontal_photos))]
-  max_score = -1
-  max_index = -1
-  for i in range(0, len(horizontal_photos)):
-    for j in range(0, len(horizontal_photos)):
-      if i == j:
-        pass
-      scores[i][j] = tagsScorer.scoreTags(horizontal_photos[i], horizontal_photos[j])
-      current_maxscore = max(scores[i])
-      if current_maxscore > max_score:
-        max_score = current_maxscore
-        max_index = i
+        horizontal_photos_ids.append(i)
+      # horizontal_photos.append(tags)
+      # horizontal_photos_ids.append(i)
+    horizontal_photos_indexes = list(range(0, len(horizontal_photos)))
+    vertical_photos_indexes = list(range(0, len(vertical_photos)))
+    if len(horizontal_photos_indexes) > 0:
+      current_photo_index = horizontal_photos_indexes[0]
+      arranged_photos = [[horizontal_photos_ids[current_photo_index]]]
+      current_photo_tags = horizontal_photos[0]
+      horizontal_photos_indexes.remove(current_photo_index)
+    else:
+      arranged_photos = [[vertical_photos_indexes[0], vertical_photos_indexes[1]]]
+      current_photo_tags = vertical_photos[0].copy()
+      current_photo_tags.update(vertical_photos[1])
+      vertical_photos_indexes.remove(0)
+      vertical_photos_indexes.remove(1)
+    score = 0
+    while len(horizontal_photos_indexes)>0 or len(vertical_photos_indexes)>0:
+      # find max in horizontals
+      max_score, max_index = get_max_horiz(current_photo_tags, horizontal_photos, horizontal_photos_indexes)
+      left_index, right_index = get_max_vert(current_photo_tags, vertical_photos, vertical_photos_indexes)
+      
+      joint_vert_score = -1
+      if left_index != None:
+        if right_index == None:
+          right_index = vertical_photos_indexes[-1]
+        joint_tags = vertical_photos[right_index].copy()
+        joint_tags.update(vertical_photos[left_index])
+        joint_vert_score = tagsScorer.scoreTags(current_photo_tags, joint_tags)
 
-  arranged_photos = []
-  arranged_photos = [photos_ids[max_index]]
-  current_index = max_index
-  score = 0
-  indexes_available = list(range(0, len(horizontal_photos)))
-  while len(arranged_photos) < len(horizontal_photos):
-    i_max = indexes_available[0]
-    for i in indexes_available:
-      if scores[current_index][i] > scores[current_index][i_max]:
-        i_max = i
-    indexes_available.remove(i_max)
-    score += scores[current_index][i_max]
-    current_index = i_max
-    arranged_photos.append(photos_ids[i_max])
-  
-  print(f'Expected score: {score}')
-  # tag_dict = dict()
-  # for photo in horizontal_photos:
-  #   for tag in photo.tags:
-  #     if tag in tag_dict:
-  #       tag_dict[tag].append(photo)
-  #     else:
-  #       tag_dict[tag] = [photo]
-  
-  # arranged_photos = [horizontal_photos[0]]
-  # for photo in horizontal_photos:
-  #   for tag in photo.tags:
-  #     tag_dict[tag]
-
-  # slideComparer = SlideComparer()
-  # for i in range(0, len(horizontal_photos)-1):
-  #   for j in range(i+1, len(horizontal_photos)):
-  #     score = slideComparer.compareTwoPhotosSlides(horizontal_photos[i], horizontal_photos[j])
-  #     if(score > horizontal_photos[i].max_similarity):
-  #       horizontal_photos[i].max_similarity = score
-  #       horizontal_photos[i].max_similar_photo = horizontal_photos[j]
-  #     if(score > horizontal_photos[j].max_similarity):
-  #       horizontal_photos[j].max_similarity = score
-  #       horizontal_photos[j].max_similar_photo = horizontal_photos[i]
-
-  #     print(score)
-
-  # arranged_photos = [horizontal_photos[0]]
-  # horizontal_photos.remove(horizontal_photos[0])
-  # for i in range(0, len(horizontal_photos)):
-  #   max_score = 0
-  #   max_elem = None
-  #   if len(horizontal_photos) == 1:
-  #     max_elem = horizontal_photos[len(horizontal_photos)-1]
-  #   else:
-  #     for j in range(i+1, len(horizontal_photos)):
-  #       current_score = tagsScorer.scoreTags(horizontal_photos[i].tags, horizontal_photos[j].tags)
-  #       if current_score >= max_score:
-  #         max_elem = horizontal_photos[j]
-  #   arranged_photos.append(max_elem)
-  #   horizontal_photos.remove(max_elem)
-
+      if joint_vert_score > max_score:
+        current_photo_tags = joint_tags
+        arranged_photos.append([vertical_photos_ids[right_index], vertical_photos_ids[left_index]])
+        vertical_photos_indexes.remove(right_index)
+        vertical_photos_indexes.remove(left_index)
+        score += joint_vert_score
+      else:
+        arranged_photos.append([horizontal_photos_ids[max_index]])
+        current_photo_tags = horizontal_photos[max_index]
+        horizontal_photos_indexes.remove(max_index)
+        score += max_score
+    print(f'Expected score: {score}')
   return arranged_photos
+
 
 if __name__ == '__main__':
   filesHelper = FilesHelper()
   problems_dir_path = 'qualification_round_2019.in'
   solutions_dir_path = 'qualification_round_2019.out'
 
-  # problem_files = filesHelper.get_problem_files(problems_dir_path)
-  problem_files = ['c_memorable_moments.txt']
+  problem_files = filesHelper.get_problem_files(problems_dir_path)
+  # problem_files = problem_files[:-1]
+  # problem_files = ['c_memorable_moments.txt']
+  # problem_files = ['e_shiny_selfies.txt']
+  problem_files = ['d_pet_pictures.txt']
 
   for file in problem_files:
     print(f'Start working on {file}')
+    start_time = time.time()
     arranged_photos = solve_file(path.join(os.getcwd(), problems_dir_path, file))
     with open(path.join(os.getcwd(), solutions_dir_path, file), 'w') as f:
       f.write(str(len(arranged_photos)) + '\n')
       for photo in arranged_photos:
-        f.write(str(photo) + '\n')
+        if len(photo) == 1:
+          f.write(str(photo[0]) + '\n')
+        else:
+          f.write(str(photo[0]) + ' ' + str(photo[1]) + '\n')
+
     print(f'Finished working on {file}')
+    print("--- %s seconds ---" % (time.time() - start_time))
+
     
